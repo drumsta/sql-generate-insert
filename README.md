@@ -124,6 +124,30 @@ INSERT INTO Person.AddressType  VALUES (6,N'Archive','A67F238A-5BA2-444B-966C-04
 SET IDENTITY_INSERT Person.AddressType OFF
 ```
 
+### Script all tables ###
+```
+DECLARE @Name nvarchar(261);
+DECLARE TableCursor CURSOR LOCAL FAST_FORWARD FOR
+SELECT QUOTENAME(s.name) + '.' + QUOTENAME(t.name) ObjectName
+FROM sys.tables t
+  INNER JOIN sys.schemas s ON s.schema_id = t.schema_id
+WHERE t.name NOT LIKE 'sys%'
+FOR READ ONLY
+;
+OPEN TableCursor;
+FETCH NEXT FROM TableCursor INTO @Name;
+
+WHILE @@FETCH_STATUS = 0
+BEGIN
+  EXECUTE dbo.GenerateInsert @ObjectName = @Name;
+
+  FETCH NEXT FROM TableCursor INTO @Name;
+END
+
+CLOSE TableCursor;
+DEALLOCATE TableCursor;
+```
+
 ## Arguments ##
 ```
   @ObjectName
