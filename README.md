@@ -6,7 +6,7 @@ Generates INSERT statement(s) for data in a table.
 - To script table or view data populated in automated way.
 - To script setup data populated in automated/manual way.
 
-## Download and build instructions: ##
+## Installation ##
 
 * Pre-requisites: MS SQL Server 2008 or later
 * Download a copy of the `GenerateInsert.sql`
@@ -90,12 +90,13 @@ SET IDENTITY_INSERT Person.AddressType OFF
 ```
 
 ### Select results into table variable for later reuse ###
+The example below is pretty tricky because simple approach `INSERT INTO... EXECUTE dbo.GenerateInsert;` ends up with `INSERT EXEC statement cannot be nested.` Some pre-requisites are required in advance, i.e. ad hoc distributed queries should be allowed on the server, connection is made using Windows authentication.
 ```
 DECLARE @Results table (TableRow varchar(max));
 DECLARE @sql nvarchar(max) =
 'SELECT * FROM OPENROWSET (
 ''SQLNCLI'',
-''Server=(local);Database='+(SELECT DB_NAME())+';Trusted_Connection=yes;'',
+''Server=(local);Database=' + DB_NAME() + ';Trusted_Connection=yes;'',
 ''EXECUTE dbo.GenerateInsert @ObjectName = N''''Person.AddressType''''
 ,@OmmitInsertColumnList=1
 ,@GenerateSingleInsertPerRow=1
@@ -146,78 +147,4 @@ END
 
 CLOSE TableCursor;
 DEALLOCATE TableCursor;
-```
-
-## Arguments ##
-```
-  @ObjectName
-    Format: [schema_name.]object_name
-    Specifies the name of a table or view to generate the INSERT statement(s) for
-  @TargetObjectName
-    Specifies the name of target table or view to insert into
-  @OmmitInsertColumnList
-    When 0 then syntax is like INSERT INTO object (column_list)...
-    When 1 then syntax is like INSERT INTO object...
-  @GenerateSingleInsertPerRow bit = 0
-    When 0 then only one INSERT statement is generated for all rows
-    When 1 then separate INSERT statement is generated for every row
-  @UseSelectSyntax bit = 0
-    When 0 then syntax is like INSERT INTO object (column_list) VALUES(...)
-    When 1 then syntax is like INSERT INTO object (column_list) SELECT...
-  @UseColumnAliasInSelect bit = 0
-    Has effect only when @UseSelectSyntax = 1
-    When 0 then syntax is like SELECT 'value1','value2'
-    When 1 then syntax is like SELECT 'value1' column1,'value2' column2
-  @FormatCode bit = 1
-    When 0 then no Line Feeds are generated
-    When 1 then additional Line Feeds are generated for better readibility
-  @GenerateOneColumnPerLine bit = 0
-    When 0 then syntax is like SELECT 'value1','value2'...
-      or VALUES('value1','value2')...
-    When 1 then syntax is like
-         SELECT
-         'value1'
-         ,'value2'
-         ...
-      or VALUES(
-         'value1'
-         ,'value2'
-         )...
-  @GenerateGo bit = 0
-    When 0 then no GO commands are generated
-    When 1 then GO commands are generated after each INSERT
-  @PrintGeneratedCode bit = 1
-    When 0 then generated code will be printed using PRINT command
-    When 1 then generated code will be selected using SELECT statement 
-  @TopExpression varchar(max) = NULL
-    When supplied then INSERT statements are generated only for TOP rows
-    Format: (expression) [PERCENT]
-    Example: @TopExpression='(5)' is equivalent to SELECT TOP (5)
-    Example: @TopExpression='(50) PERCENT' is equivalent to SELECT TOP (5) PERCENT
-  @SearchCondition varchar(max) = NULL
-    When supplied then specifies the search condition for the rows returned by the query
-    Format: <search_condition>
-    Example: @SearchCondition='column1 != ''test''' is equivalent to WHERE column1 != 'test'
-  @OmmitUnsupportedDataTypes bit = 1
-    When 0 then error is raised on unsupported data types
-    When 1 then columns with unsupported data types are excluded from generation process
-  @PopulateIdentityColumn bit = 1
-    When 0 then identity columns are excluded from generation process
-    When 1 then identity column values are preserved on insertion
-  @PopulateTimestampColumn bit = 0
-    When 0 then rowversion/timestamp column is inserted using DEFAULT value
-    When 1 then rowversion/timestamp column values are preserved on insertion,
-      useful when restoring into archive table as varbinary(8) to preserve history
-  @PopulateComputedColumn bit = 0
-    When 0 then computed columns are excluded from generation process
-    When 1 then computed column values are preserved on insertion,
-      useful when restoring into archive table as scalar values to preserve history
-  @ShowWarnings bit = 1
-    When 0 then no warnings are printed.
-    When 1 then warnings are printed if columns with unsupported data types
-      have been excluded from generation process
-    Has effect only when @OmmitUnsupportedDataTypes = 1
-  @Debug bit = 0
-    When 0 then no debug information are printed.
-    When 1 then constructed SQL statements are printed for later examination
 ```
