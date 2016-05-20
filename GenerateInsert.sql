@@ -119,16 +119,24 @@ Arguments:
 BEGIN
 SET NOCOUNT ON;
 
-DECLARE @CrLf char(2) = CHAR(13) + CHAR(10);
+DECLARE @CrLf char(2)
+SET @CrLf = CHAR(13) + CHAR(10);
 DECLARE @ColumnName sysname;
 DECLARE @DataType sysname;
-DECLARE @ColumnList nvarchar(max) = '';
-DECLARE @SelectList nvarchar(max) = '';
-DECLARE @SelectStatement nvarchar(max) = '';
-DECLARE @OmmittedColumnList nvarchar(max) = '';
-DECLARE @InsertSql varchar(max) = 'INSERT INTO ' + COALESCE(@TargetObjectName,@ObjectName);
-DECLARE @ValuesSql varchar(max) = 'VALUES (';
-DECLARE @SelectSql varchar(max) = 'SELECT ';
+DECLARE @ColumnList nvarchar(max);
+SET @ColumnList = '';
+DECLARE @SelectList nvarchar(max);
+SET @SelectList = '';
+DECLARE @SelectStatement nvarchar(max);
+SET @SelectStatement = '';
+DECLARE @OmittedColumnList nvarchar(max);
+SET @OmittedColumnList = '';
+DECLARE @InsertSql varchar(max);
+SET @InsertSql = 'INSERT INTO ' + COALESCE(@TargetObjectName,@ObjectName);
+DECLARE @ValuesSql varchar(max);
+SET @ValuesSql = 'VALUES (';
+DECLARE @SelectSql varchar(max);
+SET @SelectSql = 'SELECT ';
 DECLARE @TableData table (TableRow varchar(max));
 DECLARE @Results table (TableRow varchar(max));
 DECLARE @TableRow nvarchar(max);
