@@ -8,7 +8,7 @@ Generates INSERT statement(s) for data in a table.
 
 ## Installation ##
 
-* Pre-requisites: MS SQL Server 2008 or later
+* Pre-requisites: MS SQL Server 2005 or later
 * Download a copy of the `GenerateInsert.sql`
 * Open SQL Server Management studio and load `GenerateInsert.sql`
 * Select a database to install the stored procedure to
