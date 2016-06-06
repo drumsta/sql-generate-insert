@@ -226,8 +226,8 @@ BEGIN
 
   IF @ColumnExpression IS NULL
   BEGIN
-    SET @OmmittedColumnList = @OmmittedColumnList
-      + CASE WHEN @OmmittedColumnList != '' THEN '; ' ELSE '' END
+    SET @OmittedColumnList = @OmittedColumnList
+      + CASE WHEN @OmittedColumnList != '' THEN '; ' ELSE '' END
       + 'column ' + QUOTENAME(@ColumnName)
       + ', datatype ' + @DataType;
   END
@@ -264,11 +264,11 @@ BEGIN
   PRINT @ColumnList;
 END
 
-IF NULLIF(@OmmittedColumnList,'') IS NOT NULL
+IF NULLIF(@OmittedColumnList,'') IS NOT NULL
   AND @ShowWarnings = 1
 BEGIN
   PRINT(N'--*************************');
-  PRINT(N'--WARNING: The following columns have been ommitted because of unsupported datatypes: ' + @OmmittedColumnList);
+  PRINT(N'--WARNING: The following columns have been ommitted because of unsupported datatypes: ' + @OmittedColumnList);
   PRINT(N'--*************************');
 END
 
