@@ -14,9 +14,9 @@ CREATE PROCEDURE dbo.GenerateInsert
 , @GenerateOneColumnPerLine bit = 0
 , @GenerateGo bit = 0
 , @PrintGeneratedCode bit = 1
-, @TopExpression varchar(max) = NULL
-, @SearchCondition varchar(max) = NULL
-, @OrderByExpression varchar(max) = NULL
+, @TopExpression nvarchar(max) = NULL
+, @SearchCondition nvarchar(max) = NULL
+, @OrderByExpression nvarchar(max) = NULL
 , @OmmitUnsupportedDataTypes bit = 1
 , @PopulateIdentityColumn bit = 0
 , @PopulateTimestampColumn bit = 0
@@ -29,7 +29,7 @@ CREATE PROCEDURE dbo.GenerateInsert
 )
 AS
 /*******************************************************************************
-Procedure: GenerateInsert (Build 4)
+Procedure: GenerateInsert (Build 5)
 Decription: Generates INSERT statement(s) for data in a table.
 Purpose: To regenerate data at another location.
   To script data populated in automated way.
@@ -37,12 +37,12 @@ Purpose: To regenerate data at another location.
 Project page: http://github.com/drumsta/sql-generate-insert
 
 Arguments:
-  @ObjectName
+  @ObjectName nvarchar(261)
     Format: [schema_name.]object_name
     Specifies the name of a table or view to generate the INSERT statement(s) for
-  @TargetObjectName
+  @TargetObjectName nvarchar(261) = NULL
     Specifies the name of target table or view to insert into
-  @OmmitInsertColumnList
+  @OmmitInsertColumnList bit = 0
     When 0 then syntax is like INSERT INTO object (column_list)...
     When 1 then syntax is like INSERT INTO object...
   @GenerateSingleInsertPerRow bit = 0
@@ -76,16 +76,16 @@ Arguments:
   @PrintGeneratedCode bit = 1
     When 0 then generated code will be printed using PRINT command
     When 1 then generated code will be selected using SELECT statement 
-  @TopExpression varchar(max) = NULL
+  @TopExpression nvarchar(max) = NULL
     When supplied then INSERT statements are generated only for TOP rows
     Format: (expression) [PERCENT]
     Example: @TopExpression='(5)' is equivalent to SELECT TOP (5)
     Example: @TopExpression='(50) PERCENT' is equivalent to SELECT TOP (5) PERCENT
-  @SearchCondition varchar(max) = NULL
+  @SearchCondition nvarchar(max) = NULL
     When supplied then specifies the search condition for the rows returned by the query
     Format: <search_condition>
     Example: @SearchCondition='column1 != ''test''' is equivalent to WHERE column1 != 'test'
-  @OrderByExpression
+  @OrderByExpression nvarchar(max) = NULL
     When supplied then sorts data returned by a query. The parameter doesn't apply to the ranking function like ROW_NUMBER, RANK, DENSE_RANK, and NTILE.
     Format: <order_by_expression>
     Example: @OrderByExpression='DATEPART(year, HireDate) DESC, LastName DESC COLLATE Latin1_General_CS_AS'
@@ -129,28 +129,28 @@ SET @CrLf = CHAR(13) + CHAR(10);
 DECLARE @ColumnName sysname;
 DECLARE @DataType sysname;
 DECLARE @ColumnList nvarchar(max);
-SET @ColumnList = '';
+SET @ColumnList = N'';
 DECLARE @SelectList nvarchar(max);
-SET @SelectList = '';
+SET @SelectList = N'';
 DECLARE @SelectStatement nvarchar(max);
-SET @SelectStatement = '';
+SET @SelectStatement = N'';
 DECLARE @OmittedColumnList nvarchar(max);
-SET @OmittedColumnList = '';
-DECLARE @InsertSql varchar(max);
-SET @InsertSql = 'INSERT INTO ' + COALESCE(@TargetObjectName,@ObjectName);
-DECLARE @ValuesSql varchar(max);
-SET @ValuesSql = 'VALUES (';
-DECLARE @SelectSql varchar(max);
-SET @SelectSql = 'SELECT ';
-DECLARE @TableData table (TableRow varchar(max));
-DECLARE @Results table (TableRow varchar(max));
+SET @OmittedColumnList = N'';
+DECLARE @InsertSql nvarchar(max);
+SET @InsertSql = N'INSERT INTO ' + COALESCE(@TargetObjectName,@ObjectName);
+DECLARE @ValuesSql nvarchar(max);
+SET @ValuesSql = N'VALUES (';
+DECLARE @SelectSql nvarchar(max);
+SET @SelectSql = N'SELECT ';
+DECLARE @TableData table (TableRow nvarchar(max));
+DECLARE @Results table (TableRow nvarchar(max));
 DECLARE @TableRow nvarchar(max);
 DECLARE @RowNo int;
 
 IF PARSENAME(@ObjectName,3) IS NOT NULL
   OR PARSENAME(@ObjectName,4) IS NOT NULL
 BEGIN
-  RAISERROR('Server and database names are not allowed to specify in @ObjectName parameter. Required format is [schema_name.]object_name',16,1);
+  RAISERROR(N'Server and database names are not allowed to specify in @ObjectName parameter. Required format is [schema_name.]object_name',16,1);
   RETURN -1;
 END
 
@@ -188,32 +188,32 @@ FETCH NEXT FROM ColumnCursor INTO @ColumnName,@DataType;
 WHILE @@FETCH_STATUS = 0
 BEGIN
   -- Handle different data types
-  DECLARE @ColumnExpression varchar(max);
+  DECLARE @ColumnExpression nvarchar(max);
   SET @ColumnExpression = 
     CASE
     WHEN @DataType IN ('char','varchar','text','uniqueidentifier')
-    THEN 'ISNULL(''''''''+REPLACE(CONVERT(varchar(max),'+  QUOTENAME(@ColumnName) + '),'''''''','''''''''''')+'''''''',''NULL'') COLLATE database_default'
+    THEN N'ISNULL(''''''''+REPLACE(CONVERT(varchar(max),'+  QUOTENAME(@ColumnName) + N'),'''''''','''''''''''')+'''''''',''NULL'') COLLATE database_default'
       
     WHEN @DataType IN ('nchar','nvarchar','sysname','ntext','sql_variant','xml')
-    THEN 'ISNULL(''N''''''+REPLACE(CONVERT(nvarchar(max),'+  QUOTENAME(@ColumnName) + '),'''''''','''''''''''')+'''''''',''NULL'') COLLATE database_default'
+    THEN N'ISNULL(''N''''''+REPLACE(CONVERT(nvarchar(max),'+  QUOTENAME(@ColumnName) + N'),'''''''','''''''''''')+'''''''',''NULL'') COLLATE database_default'
       
     WHEN @DataType IN ('int','bigint','smallint','tinyint','decimal','numeric','bit')
-    THEN 'ISNULL(CONVERT(varchar(max),'+  QUOTENAME(@ColumnName) + '),''NULL'') COLLATE database_default'
+    THEN N'ISNULL(CONVERT(varchar(max),'+  QUOTENAME(@ColumnName) + N'),''NULL'') COLLATE database_default'
       
     WHEN @DataType IN ('float','real','money','smallmoney')
-    THEN 'ISNULL(CONVERT(varchar(max),'+  QUOTENAME(@ColumnName) + ',2),''NULL'') COLLATE database_default'
+    THEN N'ISNULL(CONVERT(varchar(max),'+  QUOTENAME(@ColumnName) + N',2),''NULL'') COLLATE database_default'
       
     WHEN @DataType IN ('datetime','smalldatetime','date','time','datetime2','datetimeoffset')
-    THEN '''CONVERT('+@DataType+',''+ISNULL(''''''''+CONVERT(varchar(max),'+  QUOTENAME(@ColumnName) + ',121)+'''''''',''NULL'') COLLATE database_default' + '+'',121)'''
+    THEN N'''CONVERT('+@DataType+',''+ISNULL(''''''''+CONVERT(varchar(max),'+  QUOTENAME(@ColumnName) + N',121)+'''''''',''NULL'') COLLATE database_default' + '+'',121)'''
 
     WHEN @DataType IN ('rowversion','timestamp')
     THEN
       CASE WHEN @PopulateTimestampColumn = 1
-      THEN '''CONVERT(varbinary(max),''+ISNULL(''''''''+CONVERT(varchar(max),CONVERT(varbinary(max),'+  QUOTENAME(@ColumnName) + '),1)+'''''''',''NULL'') COLLATE database_default' + '+'',1)'''
-      ELSE '''NULL''' END
+      THEN N'''CONVERT(varbinary(max),''+ISNULL(''''''''+CONVERT(varchar(max),CONVERT(varbinary(max),'+  QUOTENAME(@ColumnName) + N'),1)+'''''''',''NULL'') COLLATE database_default' + '+'',1)'''
+      ELSE N'''NULL''' END
 
     WHEN @DataType IN ('binary','varbinary','image')
-    THEN '''CONVERT(varbinary(max),''+ISNULL(''''''''+CONVERT(varchar(max),CONVERT(varbinary(max),'+  QUOTENAME(@ColumnName) + '),1)+'''''''',''NULL'') COLLATE database_default' + '+'',1)'''
+    THEN N'''CONVERT(varbinary(max),''+ISNULL(''''''''+CONVERT(varchar(max),CONVERT(varbinary(max),'+  QUOTENAME(@ColumnName) + N'),1)+'''''''',''NULL'') COLLATE database_default' + '+'',1)'''
 
     WHEN @DataType IN ('geography')
     -- convert geography to text: ?? column.STAsText();
@@ -232,23 +232,23 @@ BEGIN
   IF @ColumnExpression IS NULL
   BEGIN
     SET @OmittedColumnList = @OmittedColumnList
-      + CASE WHEN @OmittedColumnList != '' THEN '; ' ELSE '' END
-      + 'column ' + QUOTENAME(@ColumnName)
-      + ', datatype ' + @DataType;
+      + CASE WHEN @OmittedColumnList != N'' THEN N'; ' ELSE N'' END
+      + N'column ' + QUOTENAME(@ColumnName)
+      + N', datatype ' + @DataType;
   END
 
   IF @ColumnExpression IS NOT NULL
   BEGIN
     SET @ColumnList = @ColumnList
-      + CASE WHEN @ColumnList != '' THEN ',' ELSE '' END
+      + CASE WHEN @ColumnList != N'' THEN N',' ELSE N'' END
       + QUOTENAME(@ColumnName)
-      + CASE WHEN @GenerateOneColumnPerLine = 1 THEN @CrLf ELSE '' END;
+      + CASE WHEN @GenerateOneColumnPerLine = 1 THEN @CrLf ELSE N'' END;
   
     SET @SelectList = @SelectList
-      + CASE WHEN @SelectList != '' THEN '+'',''+' + @CrLf ELSE '' END
+      + CASE WHEN @SelectList != N'' THEN N'+'',''+' + @CrLf ELSE N'' END
       + @ColumnExpression
-      + CASE WHEN @UseColumnAliasInSelect = 1 AND @UseSelectSyntax = 1 THEN '+'' ' + QUOTENAME(@ColumnName) + '''' ELSE '' END
-      + CASE WHEN @GenerateOneColumnPerLine = 1 THEN '+CHAR(13)+CHAR(10)' ELSE '' END;
+      + CASE WHEN @UseColumnAliasInSelect = 1 AND @UseSelectSyntax = 1 THEN N'+'' ' + QUOTENAME(@ColumnName) + N'''' ELSE N'' END
+      + CASE WHEN @GenerateOneColumnPerLine = 1 THEN N'+CHAR(13)+CHAR(10)' ELSE N'' END;
   END
 
   FETCH NEXT FROM ColumnCursor INTO @ColumnName,@DataType;
@@ -257,7 +257,7 @@ END
 CLOSE ColumnCursor;
 DEALLOCATE ColumnCursor;
 
-IF NULLIF(@ColumnList,'') IS NULL
+IF NULLIF(@ColumnList,N'') IS NULL
 BEGIN
   RAISERROR(N'No columns to select.',16,1);
   RETURN -1;
@@ -265,8 +265,8 @@ END
 
 IF @Debug = 1
 BEGIN
-  PRINT '--Column list';
-  PRINT @ColumnList;
+  PRINT(N'--Column list');
+  PRINT(@ColumnList);
 END
 
 IF NULLIF(@OmittedColumnList,'') IS NOT NULL
@@ -280,72 +280,72 @@ END
 IF @GenerateSingleInsertPerRow = 1
 BEGIN
   SET @SelectList = 
-    '''' + @InsertSql + '''+' + @CrLf
+    N'''' + @InsertSql + N'''+' + @CrLf
     + CASE WHEN @FormatCode = 1
-      THEN 'CHAR(13)+CHAR(10)+' + @CrLf
-      ELSE ''' ''+'
+      THEN N'CHAR(13)+CHAR(10)+' + @CrLf
+      ELSE N''' ''+'
       END
     + CASE WHEN @OmmitInsertColumnList = 1
-      THEN ''
-      ELSE '''(' + @ColumnList + ')''+' + @CrLf
+      THEN N''
+      ELSE N'''(' + @ColumnList + N')''+' + @CrLf
       END
     + CASE WHEN @FormatCode = 1
-      THEN 'CHAR(13)+CHAR(10)+' + @CrLf
-      ELSE ''' ''+'
+      THEN N'CHAR(13)+CHAR(10)+' + @CrLf
+      ELSE N''' ''+'
       END
     + CASE WHEN @UseSelectSyntax = 1
-      THEN '''' + @SelectSql + '''+'
-      ELSE '''' + @ValuesSql + '''+'
+      THEN N'''' + @SelectSql + N'''+'
+      ELSE N'''' + @ValuesSql + N'''+'
       END
     + @CrLf
     + @SelectList
     + CASE WHEN @UseSelectSyntax = 1
-      THEN ''
-      ELSE '+' + @CrLf + ''')'''
+      THEN N''
+      ELSE N'+' + @CrLf + N''')'''
       END
     + CASE WHEN @GenerateStatementTerminator = 1
-      THEN '+'';'''
-      ELSE ''
+      THEN N'+'';'''
+      ELSE N''
       END
     + CASE WHEN @GenerateGo = 1
-      THEN '+' + @CrLf + 'CHAR(13)+CHAR(10)+' + @CrLf + '''GO'''
-      ELSE ''
+      THEN N'+' + @CrLf + N'CHAR(13)+CHAR(10)+' + @CrLf + N'''GO'''
+      ELSE N''
       END
   ;
 END ELSE BEGIN
   SET @SelectList =
     CASE WHEN @UseSelectSyntax = 1
-      THEN '''' + @SelectSql + '''+'
-      ELSE '''(''+'
+      THEN N'''' + @SelectSql + N'''+'
+      ELSE N'''(''+'
       END
     + @CrLf
     + @SelectList
     + CASE WHEN @UseSelectSyntax = 1
-      THEN ''
-      ELSE '+' + @CrLf + ''')'''
+      THEN N''
+      ELSE N'+' + @CrLf + N''')'''
       END
   ;
 END
 
-SET @SelectStatement = 'SELECT'
-  + CASE WHEN NULLIF(@TopExpression,'') IS NOT NULL
-    THEN ' TOP ' + @TopExpression
-    ELSE '' END
+SET @SelectStatement = N'SELECT'
+  + CASE WHEN NULLIF(@TopExpression,N'') IS NOT NULL
+    THEN N' TOP ' + @TopExpression
+    ELSE N'' END
   + @CrLf + @SelectList + @CrLf
-  + 'FROM ' + @ObjectName
-  + CASE WHEN NULLIF(@SearchCondition,'') IS NOT NULL
-    THEN @CrLf + 'WHERE ' + @SearchCondition
-    ELSE '' END
-  + CASE WHEN NULLIF(@OrderByExpression,'') IS NOT NULL
-    THEN @CrLf + 'ORDER BY ' + @OrderByExpression
-    ELSE '' END
-  + @CrLf + ';' + @CrLf + @CrLf
+  + N'FROM ' + @ObjectName
+  + CASE WHEN NULLIF(@SearchCondition,N'') IS NOT NULL
+    THEN @CrLf + N'WHERE ' + @SearchCondition
+    ELSE N'' END
+  + CASE WHEN NULLIF(@OrderByExpression,N'') IS NOT NULL
+    THEN @CrLf + N'ORDER BY ' + @OrderByExpression
+    ELSE N'' END
+  + @CrLf + N';' + @CrLf + @CrLf
 ;
 
 IF @Debug = 1
 BEGIN
-  PRINT @CrLf + '--Select statement';
-  PRINT @SelectStatement;
+  PRINT(@CrLf + N'--Select statement');
+  PRINT(@SelectStatement);
 END
 
 INSERT INTO @TableData
@@ -354,20 +354,20 @@ EXECUTE (@SelectStatement);
 IF @GenerateProjectInfo = 1
 BEGIN
   INSERT INTO @Results
-  SELECT '--INSERTs generated by GenerateInsert (Build 4)'
-  UNION SELECT '--Project page: http://github.com/drumsta/sql-generate-insert'
+  SELECT N'--INSERTs generated by GenerateInsert (Build 5)'
+  UNION SELECT N'--Project page: http://github.com/drumsta/sql-generate-insert'
 END
 
 IF @GenerateSetNoCount = 1
 BEGIN
   INSERT INTO @Results
-  SELECT 'SET NOCOUNT ON'
+  SELECT N'SET NOCOUNT ON'
 END
 
 IF @PopulateIdentityColumn = 1
 BEGIN
   INSERT INTO @Results
-  SELECT 'SET IDENTITY_INSERT ' + COALESCE(@TargetObjectName,@ObjectName) + ' ON'
+  SELECT N'SET IDENTITY_INSERT ' + COALESCE(@TargetObjectName,@ObjectName) + N' ON'
 END
 
 IF @GenerateSingleInsertPerRow = 1
@@ -384,19 +384,19 @@ END ELSE BEGIN
     IF @OmmitInsertColumnList != 1
     BEGIN
       INSERT INTO @Results
-      SELECT '(' + @ColumnList + ')';
+      SELECT N'(' + @ColumnList + N')';
     END
 
     IF @UseSelectSyntax != 1
     BEGIN
       INSERT INTO @Results
-      SELECT 'VALUES';
+      SELECT N'VALUES';
     END
   END ELSE BEGIN
     INSERT INTO @Results
     SELECT @InsertSql
-      + CASE WHEN @OmmitInsertColumnList = 1 THEN '' ELSE ' (' + @ColumnList + ')' END
-      + CASE WHEN @UseSelectSyntax = 1 THEN '' ELSE ' VALUES' END
+      + CASE WHEN @OmmitInsertColumnList = 1 THEN N'' ELSE N' (' + @ColumnList + N')' END
+      + CASE WHEN @UseSelectSyntax = 1 THEN N'' ELSE N' VALUES' END
   END
 
   SET @RowNo = 0;
@@ -415,8 +415,8 @@ END ELSE BEGIN
     INSERT INTO @Results
     SELECT
       CASE WHEN @UseSelectSyntax = 1
-      THEN CASE WHEN @RowNo > 1 THEN 'UNION' + CASE WHEN @FormatCode = 1 THEN @CrLf ELSE ' ' END ELSE '' END
-      ELSE CASE WHEN @RowNo > 1 THEN ',' ELSE ' ' END END
+      THEN CASE WHEN @RowNo > 1 THEN N'UNION' + CASE WHEN @FormatCode = 1 THEN @CrLf ELSE N' ' END ELSE N'' END
+      ELSE CASE WHEN @RowNo > 1 THEN N',' ELSE N' ' END END
       + @TableRow;
 
     FETCH NEXT FROM DataCursor INTO @TableRow;
@@ -428,30 +428,45 @@ END ELSE BEGIN
   IF @GenerateStatementTerminator = 1
   BEGIN
     INSERT INTO @Results
-    SELECT ';';
+    SELECT N';';
   END
 
   IF @GenerateGo = 1
   BEGIN
     INSERT INTO @Results
-    SELECT 'GO';
+    SELECT N'GO';
   END
 END
 
 IF @PopulateIdentityColumn = 1
 BEGIN
   INSERT INTO @Results
-  SELECT 'SET IDENTITY_INSERT ' + COALESCE(@TargetObjectName,@ObjectName) + ' OFF'
+  SELECT N'SET IDENTITY_INSERT ' + COALESCE(@TargetObjectName,@ObjectName) + N' OFF'
 END
 
 IF @FormatCode = 1
 BEGIN
   INSERT INTO @Results
-  SELECT ''; -- An empty line at the end
+  SELECT N''; -- An empty line at the end
 END
 
 IF @PrintGeneratedCode = 1
 BEGIN
+  DECLARE @LongRows bigint;
+  SET @LongRows = (SELECT COUNT(*) FROM @Results WHERE LEN(TableRow) > 4000);
+
+  IF @LongRows > 0
+    AND @ShowWarnings = 1
+  BEGIN
+    PRINT(N'--*************************');
+    IF @LongRows = 1
+      PRINT(N'--WARNING: ' + CONVERT(nvarchar(max), @LongRows) + N' Row is very long and will be chopped at every 4000 character.')
+    ELSE
+      PRINT(N'--WARNING: ' + CONVERT(nvarchar(max), @LongRows) + N' Rows are very long and will be chopped at every 4000 character.');
+    PRINT(N'-- If this is an issue then the workaround is to use @PrintGeneratedCode = 0 and output "Result to Grid" in SSMS.');
+    PRINT(N'--*************************');
+  END
+
   DECLARE ResultsCursor CURSOR LOCAL FAST_FORWARD FOR
   SELECT TableRow
   FROM @Results
@@ -462,7 +477,26 @@ BEGIN
 
   WHILE @@FETCH_STATUS = 0
   BEGIN
-    PRINT(@TableRow);
+    -- The workaround would be to use @PrintGeneratedCode = 0 and output "Result to Grid" in SSMS.
+    DECLARE @Offset tinyint; -- tracks the amount of offset needed
+    SET @TableRow = REPLACE(REPLACE(@TableRow, CHAR(13) + CHAR(10), CHAR(10)), CHAR(13), CHAR(10));
+
+    WHILE LEN(@TableRow) > 1
+    BEGIN
+      IF CHARINDEX(CHAR(10), @TableRow) BETWEEN 1 AND 4000
+      BEGIN
+        SET @CurrentEnd = CHARINDEX(CHAR(10), @TableRow) - 1;
+        SET @Offset = 2;
+      END
+      ELSE
+      BEGIN
+        SET @CurrentEnd = 4000;
+        SET @Offset = 1;
+      END
+
+      PRINT(SUBSTRING(@TableRow, 1, @CurrentEnd));
+      SET @TableRow = SUBSTRING(@TableRow, @CurrentEnd + @Offset, LEN(@TableRow))   
+    END
 
     FETCH NEXT FROM ResultsCursor INTO @TableRow;
   END
