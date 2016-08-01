@@ -477,7 +477,12 @@ BEGIN
 
   WHILE @@FETCH_STATUS = 0
   BEGIN
+    -- The following code is a workaround because the PRINT(@TableRow) has limit of 4,000 Unicode characters,
+    --   and longer strings are truncated.
+    -- It still has a con, the lines are chopped at every 4000 character, however at least everything is printed out.
+    -- http://stackoverflow.com/questions/7850477/how-to-print-varcharmax-using-print-statement
     -- The workaround would be to use @PrintGeneratedCode = 0 and output "Result to Grid" in SSMS.
+    DECLARE @CurrentEnd bigint; -- track the length of the next sub-string
     DECLARE @Offset tinyint; -- tracks the amount of offset needed
     SET @TableRow = REPLACE(REPLACE(@TableRow, CHAR(13) + CHAR(10), CHAR(10)), CHAR(13), CHAR(10));
 
