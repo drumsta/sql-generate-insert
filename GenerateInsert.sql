@@ -16,17 +16,19 @@ CREATE PROCEDURE dbo.GenerateInsert
 , @PrintGeneratedCode bit = 1
 , @TopExpression varchar(max) = NULL
 , @SearchCondition varchar(max) = NULL
-, @OrderByExpression varchar(max) = NULL
 , @OmmitUnsupportedDataTypes bit = 1
-, @PopulateIdentityColumn bit = 1
+, @PopulateIdentityColumn bit = 0
 , @PopulateTimestampColumn bit = 0
 , @PopulateComputedColumn bit = 0
+, @GenerateProjectInfo bit = 1
+, @GenerateSetNoCount bit = 1
+, @GenerateStatementTerminator bit = 1
 , @ShowWarnings bit = 1
 , @Debug bit = 0
 )
 AS
 /*******************************************************************************
-Procedure: GenerateInsert (Build 2)
+Procedure: GenerateInsert (Build 3)
 Decription: Generates INSERT statement(s) for data in a table.
 Purpose: To regenerate data at another location.
   To script data populated in automated way.
@@ -82,10 +84,6 @@ Arguments:
     When supplied then specifies the search condition for the rows returned by the query
     Format: <search_condition>
     Example: @SearchCondition='column1 != ''test''' is equivalent to WHERE column1 != 'test'
-  @OrderByExpression
-    When supplied then sorts data returned by a query. The parameter doesn't apply to the ranking function like ROW_NUMBER, RANK, DENSE_RANK, and NTILE.
-    Format: <order_by_expression>
-    Example: @OrderByExpression='DATEPART(year, HireDate) DESC, LastName DESC COLLATE Latin1_General_CS_AS'
   @OmmitUnsupportedDataTypes bit = 1
     When 0 then error is raised on unsupported data types
     When 1 then columns with unsupported data types are excluded from generation process
@@ -100,6 +98,15 @@ Arguments:
     When 0 then computed columns are excluded from generation process
     When 1 then computed column values are preserved on insertion,
       useful when restoring into archive table as scalar values to preserve history
+  @GenerateProjectInfo bit = 1
+    When 0 then no spam is generated at all.
+    When 1 then short comments are generated, i.e. SP build number and project page.
+  @GenerateSetNoCount bit = 1
+    When 0 then no SET NOCOUNT ON is generated at the beginning.
+    When 1 then SET NOCOUNT ON is generated at the beginning.
+  @GenerateStatementTerminator bit = 1
+    When 0 then each statement is not separated by semicolon (;).
+    When 1 then semicolon (;) is generated at the end of each statement.
   @ShowWarnings bit = 1
     When 0 then no warnings are printed.
     When 1 then warnings are printed if columns with unsupported data types
@@ -112,16 +119,24 @@ Arguments:
 BEGIN
 SET NOCOUNT ON;
 
-DECLARE @CrLf char(2) = CHAR(13) + CHAR(10);
+DECLARE @CrLf char(2)
+SET @CrLf = CHAR(13) + CHAR(10);
 DECLARE @ColumnName sysname;
 DECLARE @DataType sysname;
-DECLARE @ColumnList nvarchar(max) = '';
-DECLARE @SelectList nvarchar(max) = '';
-DECLARE @SelectStatement nvarchar(max) = '';
-DECLARE @OmmittedColumnList nvarchar(max) = '';
-DECLARE @InsertSql varchar(max) = 'INSERT INTO ' + COALESCE(@TargetObjectName,@ObjectName);
-DECLARE @ValuesSql varchar(max) = 'VALUES (';
-DECLARE @SelectSql varchar(max) = 'SELECT ';
+DECLARE @ColumnList nvarchar(max);
+SET @ColumnList = '';
+DECLARE @SelectList nvarchar(max);
+SET @SelectList = '';
+DECLARE @SelectStatement nvarchar(max);
+SET @SelectStatement = '';
+DECLARE @OmittedColumnList nvarchar(max);
+SET @OmittedColumnList = '';
+DECLARE @InsertSql varchar(max);
+SET @InsertSql = 'INSERT INTO ' + COALESCE(@TargetObjectName,@ObjectName);
+DECLARE @ValuesSql varchar(max);
+SET @ValuesSql = 'VALUES (';
+DECLARE @SelectSql varchar(max);
+SET @SelectSql = 'SELECT ';
 DECLARE @TableData table (TableRow varchar(max));
 DECLARE @Results table (TableRow varchar(max));
 DECLARE @TableRow nvarchar(max);
@@ -149,7 +164,7 @@ END
 
 DECLARE ColumnCursor CURSOR LOCAL FAST_FORWARD FOR
 SELECT c.name ColumnName
-,TYPE_NAME(c.user_type_id) DataType
+,TYPE_NAME(c.system_type_id) DataType
 FROM sys.objects o
   INNER JOIN sys.columns c ON c.object_id = o.object_id
 WHERE o.type IN (N'U',N'V') -- USER_TABLE,VIEW
@@ -211,10 +226,10 @@ BEGIN
 
   IF @ColumnExpression IS NULL
   BEGIN
-    SET @OmmittedColumnList = @OmmittedColumnList
-      + CASE WHEN @OmmittedColumnList != '' THEN ', ' ELSE '' END
-      + QUOTENAME(@ColumnName)
-      + ' ' + @DataType;
+    SET @OmittedColumnList = @OmittedColumnList
+      + CASE WHEN @OmittedColumnList != '' THEN '; ' ELSE '' END
+      + 'column ' + QUOTENAME(@ColumnName)
+      + ', datatype ' + @DataType;
   END
 
   IF @ColumnExpression IS NOT NULL
@@ -249,10 +264,12 @@ BEGIN
   PRINT @ColumnList;
 END
 
-IF NULLIF(@OmmittedColumnList,'') IS NOT NULL
+IF NULLIF(@OmittedColumnList,'') IS NOT NULL
   AND @ShowWarnings = 1
 BEGIN
-  PRINT(N'--WARNING: The following columns have been ommitted because of unsupported datatypes: ' + @OmmittedColumnList);
+  PRINT(N'--*************************');
+  PRINT(N'--WARNING: The following columns have been ommitted because of unsupported datatypes: ' + @OmittedColumnList);
+  PRINT(N'--*************************');
 END
 
 IF @GenerateSingleInsertPerRow = 1
@@ -281,6 +298,10 @@ BEGIN
       THEN ''
       ELSE '+' + @CrLf + ''')'''
       END
+    + CASE WHEN @GenerateStatementTerminator = 1
+      THEN '+'';'''
+      ELSE ''
+      END
     + CASE WHEN @GenerateGo = 1
       THEN '+' + @CrLf + 'CHAR(13)+CHAR(10)+' + @CrLf + '''GO'''
       ELSE ''
@@ -306,29 +327,33 @@ SET @SelectStatement = 'SELECT'
     THEN ' TOP ' + @TopExpression
     ELSE '' END
   + @CrLf + @SelectList + @CrLf
-  + ' FROM ' + @ObjectName
+  + 'FROM ' + @ObjectName
   + CASE WHEN NULLIF(@SearchCondition,'') IS NOT NULL
-    THEN @CrLf + ' WHERE ' + @SearchCondition
+    THEN @CrLf + 'WHERE ' + @SearchCondition
     ELSE '' END
-  + CASE WHEN NULLIF(@OrderByExpression,'') IS NOT NULL
-    THEN @CrLf + ' ORDER BY ' + @OrderByExpression
-    ELSE '' END
-  + @CrLf + @CrLf
 ;
 
 IF @Debug = 1
 BEGIN
-  PRINT @CrLf + '--Select statement';
+  PRINT '--Select statement';
   PRINT @SelectStatement;
 END
 
 INSERT INTO @TableData
 EXECUTE (@SelectStatement);
 
-INSERT INTO @Results
-SELECT '--INSERTs generated by GenerateInsert (Build 2)'
-UNION SELECT '--Project page: http://github.com/drumsta/sql-generate-insert'
-UNION SELECT 'SET NOCOUNT ON'
+IF @GenerateProjectInfo = 1
+BEGIN
+  INSERT INTO @Results
+  SELECT '--INSERTs generated by GenerateInsert (Build 3)'
+  UNION SELECT '--Project page: http://github.com/drumsta/sql-generate-insert'
+END
+
+IF @GenerateSetNoCount = 1
+BEGIN
+  INSERT INTO @Results
+  SELECT 'SET NOCOUNT ON'
+END
 
 IF @PopulateIdentityColumn = 1
 BEGIN
@@ -391,6 +416,12 @@ END ELSE BEGIN
   CLOSE DataCursor;
   DEALLOCATE DataCursor;
 
+  IF @GenerateStatementTerminator = 1
+  BEGIN
+    INSERT INTO @Results
+    SELECT ';';
+  END
+
   IF @GenerateGo = 1
   BEGIN
     INSERT INTO @Results
@@ -402,6 +433,12 @@ IF @PopulateIdentityColumn = 1
 BEGIN
   INSERT INTO @Results
   SELECT 'SET IDENTITY_INSERT ' + COALESCE(@TargetObjectName,@ObjectName) + ' OFF'
+END
+
+IF @FormatCode = 1
+BEGIN
+  INSERT INTO @Results
+  SELECT ''; -- An empty line at the end
 END
 
 IF @PrintGeneratedCode = 1
