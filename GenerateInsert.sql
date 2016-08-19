@@ -16,6 +16,7 @@ CREATE PROCEDURE dbo.GenerateInsert
 , @PrintGeneratedCode bit = 1
 , @TopExpression varchar(max) = NULL
 , @SearchCondition varchar(max) = NULL
+, @SearchOrder varchar(max) = NULL
 , @OmmitUnsupportedDataTypes bit = 1
 , @PopulateIdentityColumn bit = 0
 , @PopulateTimestampColumn bit = 0
@@ -84,6 +85,10 @@ Arguments:
     When supplied then specifies the search condition for the rows returned by the query
     Format: <search_condition>
     Example: @SearchCondition='column1 != ''test''' is equivalent to WHERE column1 != 'test'
+  @SearchOrder varchar(max) = NULL
+	When supplied, defines an ordering of the rows returned by the query
+    Format: <search_order>
+    Example: @SearchOrder='column1 ASC, column2 DESC'
   @OmmitUnsupportedDataTypes bit = 1
     When 0 then error is raised on unsupported data types
     When 1 then columns with unsupported data types are excluded from generation process
@@ -331,6 +336,9 @@ SET @SelectStatement = 'SELECT'
   + CASE WHEN NULLIF(@SearchCondition,'') IS NOT NULL
     THEN @CrLf + 'WHERE ' + @SearchCondition
     ELSE '' END
+  + CASE WHEN NULLIF(@SearchOrder, '') IS NOT NULL
+    THEN @CrLf + 'ORDER BY ' + @SearchOrder
+	ELSE '' END
 ;
 
 IF @Debug = 1
