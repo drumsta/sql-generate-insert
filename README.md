@@ -39,6 +39,20 @@ VALUES
 SET IDENTITY_INSERT Person.AddressType OFF
 ```
 
+**Table-valued and inline user defined functions are supported**
+```
+EXECUTE dbo.GenerateInsert @ObjectName='dbo.ufnGetContactInformation', @FunctionParameters='(1)'
+, @TargetObjectName='MyContactInfo';
+```
+This will generate the following script:
+```
+SET NOCOUNT ON
+INSERT INTO MyContactInfo
+([PersonID],[FirstName],[LastName],[JobTitle],[BusinessEntityType])
+VALUES
+ (1,N'Ken',N'Sánchez',N'Chief Executive Officer',N'Employee')
+```
+
 ### Example using SELECT syntax ###
 
 ```
@@ -148,3 +162,6 @@ END
 CLOSE TableCursor;
 DEALLOCATE TableCursor;
 ```
+
+#### Wall of Appreciation ####
+If you would like to express your gratitude to this project do not hesitate to make a pull request to https://github.com/drumsta/sql-generate-insert/blob/master/THANKS.md
