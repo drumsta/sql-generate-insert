@@ -1,7 +1,7 @@
 # INSERT statement(s) generator #
+Generates INSERT statement(s) for data in a table.
 
 [![Join the chat at https://gitter.im/sql-generate-insert/Lobby](https://badges.gitter.im/sql-generate-insert/Lobby.svg)](https://gitter.im/sql-generate-insert/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-Generates INSERT statement(s) for data in a table.
 
 ## Purpose ##
 - To regenerate data at another location.
