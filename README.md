@@ -169,8 +169,12 @@ CLOSE TableCursor;
 DEALLOCATE TableCursor;
 ```
 
+## Contributing to this project ##
 
+Anyone and everyone is welcome to contribute to [sql-generate-insert](https://github.com/drumsta/sql-generate-insert),
 
+Feel free to report a bug in the [issue tracker](https://github.com/drumsta/sql-generate-insert/issues) or [create a fork](https://github.com/drumsta/sql-generate-insert/fork), improve it and [submit a pull request](https://github.com/drumsta/sql-generate-insert/compare).
 
+## Would like to express your gratitude? ##
 
 Hit the :star: **Star** button!
