@@ -14,6 +14,12 @@ Generates INSERT statement(s) for data in a table.
 * Select a database to install the stored procedure to
 * Click Execute from the toolbar, this should run with a result of `Command Completely Successfully`
 
+## Change Log ##
+
+- Build 6. Added support for table-valued and inline user defined functions.
+- Build 5. Fixed an issue with strings longer than 4000 characters.
+- Build 4. New option to sort data returned by a query.
+
 ## Usage ##
 
 ### Quick example ###
@@ -163,5 +169,8 @@ CLOSE TableCursor;
 DEALLOCATE TableCursor;
 ```
 
-#### Wall of Appreciation ####
-If you would like to express your gratitude to this project do not hesitate to make a pull request to https://github.com/drumsta/sql-generate-insert/blob/master/THANKS.md
+
+
+
+
+Hit the :star: **Star** button!
