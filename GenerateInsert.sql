@@ -270,8 +270,8 @@ BEGIN
   BEGIN
     SET @ColumnList = @ColumnList
       + CASE WHEN @ColumnList != N'' THEN N',' ELSE N'' END
-      + QUOTENAME(@ColumnName)
-      + CASE WHEN @GenerateOneColumnPerLine = 1 THEN @CrLf ELSE N'' END;
+      + CASE WHEN @GenerateOneColumnPerLine = 1 AND ISNULL(@ColumnList, '') <> '' THEN @CrLf ELSE N'' END   -- Add @CrLf only if not the first column.
+      + QUOTENAME(@ColumnName);
   
     SET @SelectList = @SelectList
       + CASE WHEN @SelectList != N'' THEN N'+'',''+' + @CrLf ELSE N'' END
