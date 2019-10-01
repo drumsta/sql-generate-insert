@@ -27,6 +27,8 @@ CREATE PROCEDURE dbo.GenerateInsert
 , @GenerateStatementTerminator bit = 1
 , @ShowWarnings bit = 1
 , @Debug bit = 0
+, @ColumnExclusion nvarchar(max) = NULL
+, @ColumnInclusion nvarchar(max) = NULL
 )
 AS
 /*******************************************************************************
@@ -126,6 +128,12 @@ Arguments:
   @Debug bit = 0
     When 0 then no debug information are printed.
     When 1 then constructed SQL statements are printed for later examination
+  @ColumnExclusion nvarchar(max) = NULL
+    A comma seperated string of column names which should be excluded 
+    Format: 'ID,DateAdded,DateCreated'
+  @ColumnInclusion nvarchar(max) = NULL
+    A comma seperated string of column names which should be included 
+    Format: 'ID,DateAdded,DateCreated'
 *******************************************************************************/
 BEGIN
 SET NOCOUNT ON;
@@ -152,6 +160,22 @@ DECLARE @TableData table (TableRow nvarchar(max));
 DECLARE @Results table (TableRow nvarchar(max));
 DECLARE @TableRow nvarchar(max);
 DECLARE @RowNo int;
+
+DECLARE @ColumnExclusionTable TABLE (ColumnName nvarchar(4000))
+INSERT INTO @ColumnExclusionTable (ColumnName)
+SELECT LTRIM(RTRIM(m.n.value('.[1]','varchar(8000)'))) AS ColumnName
+FROM (
+SELECT CAST('<XMLRoot><RowData>' + REPLACE(@ColumnExclusion,',','</RowData><RowData>') + '</RowData></XMLRoot>' AS XML) AS x
+) ce
+CROSS APPLY x.nodes('/XMLRoot/RowData')m(n)
+
+DECLARE @ColumnInclusionTABLE TABLE (COLUMNNAME nvarchar(4000))
+INSERT INTO @ColumnInclusionTABLE (COLUMNNAME)
+SELECT LTRIM(RTRIM(m.n.value('.[1]','varchar(8000)'))) AS COLUMNNAME
+FROM (
+SELECT CAST('<XMLRoot><RowData>' + REPLACE(@ColumnInclusion,',','</RowData><RowData>') + '</RowData></XMLRoot>' AS XML) AS x
+) ce
+CROSS APPLY x.nodes('/XMLRoot/RowData')m(n)
 
 IF PARSENAME(@ObjectName,3) IS NOT NULL
   OR PARSENAME(@ObjectName,4) IS NOT NULL
@@ -208,6 +232,10 @@ WHERE o.type IN (N'U',N'V',N'IF',N'TF')
     OR @PopulateIdentityColumn = 1)
   AND (COLUMNPROPERTY(c.object_id,c.name,'IsComputed') != 1
     OR @PopulateComputedColumn = 1)
+  AND (c.name NOT IN (SELECT COLUMNNAME FROM @ColumnExclusionTable)
+	  OR @ColumnExclusion IS NULL OR LEN(@ColumnExclusion) = 0)
+  AND (c.name IN (SELECT COLUMNNAME FROM @ColumnInclusionTable)
+	  OR @ColumnInclusion IS NULL OR LEN(@ColumnInclusion) = 0)
 ORDER BY COLUMNPROPERTY(c.object_id,c.name,'ordinal') -- ORDINAL_POSITION
 FOR READ ONLY
 ;
