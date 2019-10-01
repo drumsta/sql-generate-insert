@@ -18,6 +18,7 @@ Generates INSERT statement(s) for data in a table.
 
 ## Change Log ##
 
+- Build 7. Added support for including or excluding columns.
 - Build 6. Added support for table-valued and inline user defined functions.
 - Build 5. Fixed an issue with strings longer than 4000 characters.
 - Build 4. New option to sort data returned by a query.
