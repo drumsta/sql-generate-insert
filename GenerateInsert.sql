@@ -27,7 +27,7 @@ CREATE PROCEDURE dbo.GenerateInsert
 , @GenerateStatementTerminator bit = 1
 , @ShowWarnings bit = 1
 , @Debug bit = 0
-, @GenerateTableStatement bit = 1
+, @GenerateTableStatement bit = 0
 )
 AS
 /*******************************************************************************
