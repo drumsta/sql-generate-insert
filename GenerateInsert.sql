@@ -149,7 +149,7 @@ SET @ValuesSql = N'VALUES (';
 DECLARE @SelectSql nvarchar(max);
 SET @SelectSql = N'SELECT ';
 DECLARE @TableData table (TableRow nvarchar(max));
-DECLARE @Results table (TableRow nvarchar(max));
+DECLARE @Results table (TableRow nvarchar(max),Id BIGINT IDENTITY(1,1), PRIMARY KEY (Id));
 DECLARE @TableRow nvarchar(max);
 DECLARE @RowNo int;
 
@@ -541,7 +541,7 @@ BEGIN
   CLOSE ResultsCursor;
   DEALLOCATE ResultsCursor;
 END ELSE BEGIN
-  SELECT *
+  SELECT TableRow
   FROM @Results;
 END
 
