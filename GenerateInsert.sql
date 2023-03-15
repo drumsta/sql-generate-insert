@@ -152,6 +152,7 @@ DECLARE @TableData table (TableRow nvarchar(max));
 DECLARE @Results table (TableRow nvarchar(max));
 DECLARE @TableRow nvarchar(max);
 DECLARE @RowNo int;
+DECLARE @HasIdentityColumn bit;
 
 IF PARSENAME(@ObjectName,3) IS NOT NULL
   OR PARSENAME(@ObjectName,4) IS NOT NULL
@@ -398,8 +399,14 @@ END
 
 IF @PopulateIdentityColumn = 1
 BEGIN
-  INSERT INTO @Results
-  SELECT N'SET IDENTITY_INSERT ' + COALESCE(@TargetObjectName,@ObjectName) + N' ON'
+  IF EXISTS (select 1 from sys.columns where object_id = OBJECT_ID(@ObjectName) AND is_identity = 1)
+    SET @HasIdentityColumn = 1
+  ELSE
+    SET @HasIdentityColumn = 0
+
+  IF @HasIdentityColumn = 1
+    INSERT INTO @Results
+    SELECT N'SET IDENTITY_INSERT ' + COALESCE(@TargetObjectName,@ObjectName) + N' ON'
 END
 
 IF @GenerateSingleInsertPerRow = 1
@@ -472,8 +479,9 @@ END
 
 IF @PopulateIdentityColumn = 1
 BEGIN
-  INSERT INTO @Results
-  SELECT N'SET IDENTITY_INSERT ' + COALESCE(@TargetObjectName,@ObjectName) + N' OFF'
+  IF @HasIdentityColumn = 1
+    INSERT INTO @Results
+    SELECT N'SET IDENTITY_INSERT ' + COALESCE(@TargetObjectName,@ObjectName) + N' OFF'
 END
 
 IF @FormatCode = 1
